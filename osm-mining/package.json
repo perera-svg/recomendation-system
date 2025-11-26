@@ -1,0 +1,27 @@
+{
+  "name": "osm-mining",
+  "version": "1.0.0",
+  "description": "OpenStreetMap data mining for Sri Lanka tourism places using Overpass API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "fetch": "node src/fetchOsmData.js",
+    "test": "node src/test.js"
+  },
+  "keywords": [
+    "openstreetmap",
+    "osm",
+    "geojson",
+    "sri-lanka",
+    "tourism",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "osmtogeojson": "^3.0.0-beta.5",
+    "node-fetch": "^2.7.0",
+    "mongodb": "^6.3.0",
+    "dotenv": "^16.3.1"
+  }
+}
