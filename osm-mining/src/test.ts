@@ -3,10 +3,12 @@
  * Tests the Overpass API connection and basic functionality
  */
 
-const OsmDataFetcher = require("./osmFetcher");
-const config = require("./config");
+import OsmDataFetcher from "./osmFetcher";
+import OverpassQueryBuilder from "./queryBuilder";
+import config from "./config";
+import { GeoJSONFeatureCollection } from "./types";
 
-async function testConnection() {
+async function testConnection(): Promise<boolean> {
   console.log("Testing Overpass API connection...\n");
 
   const fetcher = new OsmDataFetcher();
@@ -37,25 +39,27 @@ out body;
     if (geojson.features.length > 0) {
       console.log("\nSample features:");
       geojson.features.slice(0, 5).forEach((feature, index) => {
-        const name =
-          feature.properties.tags?.name || feature.properties.name || "Unnamed";
-        const type = feature.properties.tags?.tourism || "N/A";
+        const props = feature.properties as Record<string, unknown>;
+        const tags = (props.tags || props) as Record<string, string>;
+        const name = tags?.name || "Unnamed";
+        const type = tags?.tourism || "N/A";
         console.log(`  ${index + 1}. ${name} (${type})`);
       });
     }
 
     return true;
   } catch (error) {
-    console.error("\n✗ Connection failed:", error.message);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error("\n✗ Connection failed:", errorMessage);
     return false;
   }
 }
 
-async function testQueryBuilder() {
+async function testQueryBuilder(): Promise<void> {
   console.log("\n" + "=".repeat(50));
   console.log("Testing Query Builder...\n");
 
-  const OverpassQueryBuilder = require("./queryBuilder");
   const builder = new OverpassQueryBuilder(config.sriLankaBbox);
 
   // Test tourism query
@@ -75,14 +79,14 @@ async function testQueryBuilder() {
   console.log("✓ Query Builder working correctly!");
 }
 
-async function testProcessing() {
+async function testProcessing(): Promise<void> {
   console.log("\n" + "=".repeat(50));
   console.log("Testing Data Processing...\n");
 
   const fetcher = new OsmDataFetcher();
 
   // Create sample GeoJSON
-  const sampleGeoJSON = {
+  const sampleGeoJSON: GeoJSONFeatureCollection = {
     type: "FeatureCollection",
     features: [
       {
@@ -116,7 +120,7 @@ async function testProcessing() {
 }
 
 // Run all tests
-async function runTests() {
+async function runTests(): Promise<void> {
   console.log("=".repeat(50));
   console.log("OSM Mining Test Suite");
   console.log("=".repeat(50));

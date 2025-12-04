@@ -3,16 +3,16 @@
  * Fetches OSM data and stores in MongoDB
  */
 
-const OsmDataFetcher = require("./osmFetcher");
-const MongoDBStorage = require("./mongoStorage");
-const config = require("./config");
-const fs = require("fs");
-const path = require("path");
+import OsmDataFetcher from "./osmFetcher";
+import MongoDBStorage from "./mongoStorage";
+import config from "./config";
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Main function to fetch and store OSM data
  */
-async function main() {
+async function main(): Promise<void> {
   console.log("=".repeat(60));
   console.log("OSM Mining for Sri Lanka Tourism Data");
   console.log("=".repeat(60));
@@ -82,7 +82,7 @@ async function main() {
 /**
  * Fetch only tourism data (lighter query)
  */
-async function fetchTourismOnly() {
+async function fetchTourismOnly(): Promise<void> {
   const fetcher = new OsmDataFetcher();
   const storage = new MongoDBStorage();
 
@@ -103,7 +103,7 @@ async function fetchTourismOnly() {
 /**
  * Periodic fetching with interval
  */
-async function startPeriodicFetching() {
+async function startPeriodicFetching(): Promise<void> {
   console.log(
     `Starting periodic OSM data fetching every ${
       config.fetchIntervalMs / 3600000
@@ -121,14 +121,12 @@ async function startPeriodicFetching() {
 }
 
 // Export functions
-module.exports = {
-  main,
-  fetchTourismOnly,
-  startPeriodicFetching,
-};
+export { main, fetchTourismOnly, startPeriodicFetching };
 
 // Run if executed directly
-if (require.main === module) {
+const isMainModule = require.main === module;
+
+if (isMainModule) {
   const args = process.argv.slice(2);
 
   if (args.includes("--periodic")) {

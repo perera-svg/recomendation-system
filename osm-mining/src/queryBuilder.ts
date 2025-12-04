@@ -3,30 +3,34 @@
  * Builds Overpass QL queries for fetching OSM data
  */
 
+import { BoundingBox, TagConfig } from "./types";
+
 class OverpassQueryBuilder {
+  private bbox: BoundingBox;
+
   /**
    * Create a new query builder
-   * @param {Object} bbox - Bounding box {south, west, north, east}
+   * @param bbox - Bounding box {south, west, north, east}
    */
-  constructor(bbox) {
+  constructor(bbox: BoundingBox) {
     this.bbox = bbox;
   }
 
   /**
    * Get the bounding box string for Overpass QL
-   * @returns {string} Bounding box in format (south,west,north,east)
+   * @returns Bounding box in format (south,west,north,east)
    */
-  getBboxString() {
+  getBboxString(): string {
     const { south, west, north, east } = this.bbox;
     return `${south},${west},${north},${east}`;
   }
 
   /**
    * Build a query for tourism tags
-   * @param {string[]} tags - Array of tourism tag values
-   * @returns {string} Overpass QL query
+   * @param tags - Array of tourism tag values
+   * @returns Overpass QL query
    */
-  buildTourismQuery(tags) {
+  buildTourismQuery(tags: string[]): string {
     const bboxStr = this.getBboxString();
     const tagFilters = tags
       .map((tag) => `node["tourism"="${tag}"](${bboxStr});`)
@@ -49,10 +53,10 @@ out skel qt;
 
   /**
    * Build a query for amenity tags
-   * @param {string[]} tags - Array of amenity tag values
-   * @returns {string} Overpass QL query
+   * @param tags - Array of amenity tag values
+   * @returns Overpass QL query
    */
-  buildAmenityQuery(tags) {
+  buildAmenityQuery(tags: string[]): string {
     const bboxStr = this.getBboxString();
     const tagFilters = tags
       .map((tag) => `node["amenity"="${tag}"](${bboxStr});`)
@@ -75,10 +79,10 @@ out skel qt;
 
   /**
    * Build a query for historic tags
-   * @param {string[]} tags - Array of historic tag values
-   * @returns {string} Overpass QL query
+   * @param tags - Array of historic tag values
+   * @returns Overpass QL query
    */
-  buildHistoricQuery(tags) {
+  buildHistoricQuery(tags: string[]): string {
     const bboxStr = this.getBboxString();
     const tagFilters = tags
       .map((tag) => `node["historic"="${tag}"](${bboxStr});`)
@@ -101,10 +105,10 @@ out skel qt;
 
   /**
    * Build a query for natural features
-   * @param {string[]} tags - Array of natural tag values
-   * @returns {string} Overpass QL query
+   * @param tags - Array of natural tag values
+   * @returns Overpass QL query
    */
-  buildNaturalQuery(tags) {
+  buildNaturalQuery(tags: string[]): string {
     const bboxStr = this.getBboxString();
     const tagFilters = tags
       .map((tag) => `node["natural"="${tag}"](${bboxStr});`)
@@ -127,10 +131,10 @@ out skel qt;
 
   /**
    * Build a query for leisure places
-   * @param {string[]} tags - Array of leisure tag values
-   * @returns {string} Overpass QL query
+   * @param tags - Array of leisure tag values
+   * @returns Overpass QL query
    */
-  buildLeisureQuery(tags) {
+  buildLeisureQuery(tags: string[]): string {
     const bboxStr = this.getBboxString();
     const tagFilters = tags
       .map((tag) => `node["leisure"="${tag}"](${bboxStr});`)
@@ -153,15 +157,15 @@ out skel qt;
 
   /**
    * Build a comprehensive query for all tourism-related data
-   * @param {Object} config - Configuration object with tag arrays
-   * @returns {string} Overpass QL query
+   * @param config - Configuration object with tag arrays
+   * @returns Overpass QL query
    */
-  buildComprehensiveQuery(config) {
+  buildComprehensiveQuery(tagConfig: TagConfig): string {
     const bboxStr = this.getBboxString();
     const { tourismTags, amenityTags, historicTags, naturalTags, leisureTags } =
-      config;
+      tagConfig;
 
-    let filters = [];
+    const filters: string[] = [];
 
     // Tourism tags
     if (tourismTags && tourismTags.length > 0) {
@@ -215,4 +219,4 @@ out skel qt;
   }
 }
 
-module.exports = OverpassQueryBuilder;
+export default OverpassQueryBuilder;

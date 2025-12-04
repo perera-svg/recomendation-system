@@ -2,11 +2,20 @@
   "name": "osm-mining",
   "version": "1.0.0",
   "description": "OpenStreetMap data mining for Sri Lanka tourism places using Overpass API",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "fetch": "node src/fetchOsmData.js",
-    "test": "node src/test.js"
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js",
+    "start:dev": "ts-node src/index.ts",
+    "fetch": "npm run build && node dist/fetchOsmData.js",
+    "fetch:dev": "ts-node src/fetchOsmData.ts",
+    "test": "npm run build && node dist/test.js",
+    "test:dev": "ts-node src/test.ts",
+    "clean": "rimraf dist",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:reset": "docker compose down -v && docker compose up -d"
   },
   "keywords": [
     "openstreetmap",
@@ -14,14 +23,22 @@
     "geojson",
     "sri-lanka",
     "tourism",
-    "mongodb"
+    "mongodb",
+    "typescript"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "osmtogeojson": "^3.0.0-beta.5",
+    "dotenv": "^16.3.1",
+    "mongodb": "^6.12.0",
     "node-fetch": "^2.7.0",
-    "mongodb": "^6.3.0",
-    "dotenv": "^16.3.1"
+    "osmtogeojson": "^3.0.0-beta.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/node-fetch": "^2.6.12",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   }
 }

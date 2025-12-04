@@ -1,12 +1,14 @@
 # OSM Mining for Sri Lanka Tourism Data
 
-A Node.js application that mines OpenStreetMap (OSM) data for tourism-related places in Sri Lanka using the Overpass API and converts it to GeoJSON format for MongoDB storage.
+A TypeScript Node.js application that mines OpenStreetMap (OSM) data for tourism-related places in Sri Lanka using the Overpass API and converts it to GeoJSON format for MongoDB storage.
 
 ## Features
 
 - 🗺️ Fetches tourism data from OpenStreetMap via Overpass API
 - 🔄 Converts OSM XML/JSON to GeoJSON using `osmtogeojson`
 - 💾 Stores data in MongoDB with geospatial indexing
+- 🐳 Docker Compose setup for MongoDB 8.0 with Mongo Express UI
+- 📝 Fully typed with TypeScript
 - 🔍 Supports various tourism-related categories:
   - Tourism (attractions, hotels, museums, viewpoints, etc.)
   - Amenities (restaurants, cafes, banks, etc.)
@@ -18,11 +20,11 @@ A Node.js application that mines OpenStreetMap (OSM) data for tourism-related pl
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- MongoDB (v4.4 or higher)
+- Node.js (v18 or higher)
+- Docker and Docker Compose (for MongoDB)
 - Internet connection for Overpass API access
 
-## Installation
+## Quick Start with Docker
 
 1. Clone or navigate to the project directory:
 
@@ -36,25 +38,68 @@ A Node.js application that mines OpenStreetMap (OSM) data for tourism-related pl
    npm install
    ```
 
-3. Create environment configuration:
+3. Start MongoDB using Docker:
+
+   ```bash
+   npm run docker:up
+   ```
+
+   This starts:
+   - MongoDB 8.0 on port `27017`
+   - Mongo Express (Web UI) on port `8081`
+
+4. Create environment configuration:
 
    ```bash
    cp .env.example .env
    ```
 
-4. Edit `.env` file with your MongoDB connection details:
-   ```env
-   MONGODB_URI=mongodb://localhost:27017
-   MONGODB_DATABASE=tourism_db
-   MONGODB_COLLECTION=places
+5. Build and run:
+   ```bash
+   npm start
    ```
+
+## Docker Commands
+
+```bash
+# Start MongoDB containers
+npm run docker:up
+
+# Stop MongoDB containers
+npm run docker:down
+
+# View container logs
+npm run docker:logs
+
+# Reset MongoDB (removes all data)
+npm run docker:reset
+```
+
+## MongoDB Access
+
+### Connection Details
+
+- **Host:** `localhost:27017`
+- **Admin User:** `admin` / `password123`
+- **App User:** `osm_app` / `osm_password123`
+- **Database:** `tourism_db`
+
+### Mongo Express (Web UI)
+
+Access at: http://localhost:8081
+- **Username:** `admin`
+- **Password:** `admin123`
 
 ## Usage
 
 ### Fetch and Store Data (with MongoDB)
 
 ```bash
+# Build and run (production)
 npm start
+
+# Run directly with ts-node (development)
+npm run start:dev
 ```
 
 This will:
@@ -68,7 +113,11 @@ This will:
 ### Fetch Data Only (without MongoDB)
 
 ```bash
+# Build and run
 npm run fetch
+
+# Development mode
+npm run fetch:dev
 ```
 
 This will fetch data and save it to GeoJSON files in the `output/` directory without requiring MongoDB.
@@ -76,20 +125,24 @@ This will fetch data and save it to GeoJSON files in the `output/` directory wit
 ### Run Tests
 
 ```bash
+# Build and run tests
 npm test
+
+# Development mode
+npm run test:dev
 ```
 
 ### Command Line Options
 
 ```bash
 # Standard fetch and store
-node src/index.js
+npm start
 
 # Periodic fetching (every 24 hours by default)
-node src/index.js --periodic
+node dist/index.js --periodic
 
 # Fetch tourism data only (lighter query)
-node src/index.js --tourism-only
+node dist/index.js --tourism-only
 ```
 
 ## Project Structure
@@ -97,14 +150,21 @@ node src/index.js --tourism-only
 ```
 osm-mining/
 ├── src/
-│   ├── config.js         # Configuration and environment variables
-│   ├── queryBuilder.js   # Overpass QL query builder
-│   ├── osmFetcher.js     # OSM data fetcher and GeoJSON converter
-│   ├── mongoStorage.js   # MongoDB storage handler
-│   ├── index.js          # Main entry point
-│   ├── fetchOsmData.js   # Standalone fetch script
-│   └── test.js           # Test suite
+│   ├── types.ts          # TypeScript type definitions
+│   ├── config.ts         # Configuration and environment variables
+│   ├── queryBuilder.ts   # Overpass QL query builder
+│   ├── osmFetcher.ts     # OSM data fetcher and GeoJSON converter
+│   ├── mongoStorage.ts   # MongoDB storage handler
+│   ├── index.ts          # Main entry point
+│   ├── fetchOsmData.ts   # Standalone fetch script
+│   ├── test.ts           # Test suite
+│   └── osmtogeojson.d.ts # Type declarations for osmtogeojson
+├── dist/                 # Compiled JavaScript (generated)
 ├── output/               # Generated GeoJSON files
+├── mongo-init/           # MongoDB initialization scripts
+│   └── init-db.js        # Creates indexes and app user
+├── docker-compose.yml    # Docker Compose for MongoDB
+├── tsconfig.json         # TypeScript configuration
 ├── .env.example          # Environment variables template
 ├── package.json
 └── README.md
@@ -139,40 +199,37 @@ The default bounding box covers Sri Lanka:
 
 Each place document in MongoDB has the following structure:
 
-```javascript
-{
-  osm_id: "node/123456",
-  osm_type: "node",
-  name: "Sigiriya Rock Fortress",
-  name_si: "සීගිරිය",      // Sinhala name
-  name_ta: "சிகிரியா",     // Tamil name
-  category: "tourism",
-  subcategory: "attraction",
-  geometry: {
-    type: "Point",
-    coordinates: [80.759, 7.957]
-  },
-  location: {              // For geospatial queries
-    type: "Point",
-    coordinates: [80.759, 7.957]
-  },
-  tags: { /* Original OSM tags */ },
+```typescript
+interface ProcessedPlace {
+  osm_id: string;
+  osm_type: string;
+  name: string;
+  name_si: string | null;      // Sinhala name
+  name_ta: string | null;      // Tamil name
+  category: string;
+  subcategory: string;
+  geometry: GeoJSONGeometry | null;
+  location: {                  // For geospatial queries
+    type: 'Point';
+    coordinates: [number, number];
+  } | null;
+  tags: Record<string, string>;
   address: {
-    street: null,
-    city: null,
-    postcode: null,
-    country: "Sri Lanka"
-  },
+    street: string | null;
+    city: string | null;
+    postcode: string | null;
+    country: string;
+  };
   contact: {
-    phone: null,
-    email: null,
-    website: null
-  },
-  opening_hours: null,
-  wheelchair: null,
-  description: null,
-  fetched_at: ISODate("2025-11-26T00:00:00Z"),
-  source: "OpenStreetMap"
+    phone: string | null;
+    email: string | null;
+    website: string | null;
+  };
+  opening_hours: string | null;
+  wheelchair: string | null;
+  description: string | null;
+  fetched_at: Date;
+  source: string;
 }
 ```
 
@@ -210,12 +267,13 @@ db.places.find({ $text: { $search: "beach resort" } });
 
 ### OsmDataFetcher
 
-```javascript
-const OsmDataFetcher = require("./osmFetcher");
+```typescript
+import OsmDataFetcher from './osmFetcher';
+
 const fetcher = new OsmDataFetcher();
 
 // Fetch by category
-const geojson = await fetcher.fetchByCategory("tourism");
+const geojson = await fetcher.fetchByCategory('tourism');
 
 // Fetch all data
 const allData = await fetcher.fetchAllData();
@@ -226,8 +284,9 @@ const processed = fetcher.processForMongoDB(geojson);
 
 ### MongoDBStorage
 
-```javascript
-const MongoDBStorage = require("./mongoStorage");
+```typescript
+import MongoDBStorage from './mongoStorage';
+
 const storage = new MongoDBStorage();
 
 await storage.connect();
@@ -239,12 +298,22 @@ await storage.storeFeatures(processedFeatures);
 const nearby = await storage.findNear(80.759, 7.957, 5000);
 
 // Search
-const results = await storage.search("beach");
+const results = await storage.search('beach');
 
 // Get statistics
 const stats = await storage.getStats();
 
 await storage.disconnect();
+```
+
+## Building
+
+```bash
+# Build TypeScript to JavaScript
+npm run build
+
+# Clean build output
+npm run clean
 ```
 
 ## Rate Limiting

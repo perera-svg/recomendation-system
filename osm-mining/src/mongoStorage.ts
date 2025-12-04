@@ -3,15 +3,31 @@
  * Handles storing GeoJSON data in MongoDB with geospatial indexing
  */
 
-const { MongoClient } = require("mongodb");
-const config = require("./config");
+import { MongoClient, Db, Collection, Document, Filter, WithId } from "mongodb";
+import config from "./config";
+import {
+  ExportFeature,
+  GeoJSONFeatureCollection,
+  ProcessedPlace,
+  QueryOptions,
+  Statistics,
+  StorageOptions,
+  StorageResult,
+} from "./types";
 
 class MongoDBStorage {
+  private uri: string;
+  private databaseName: string;
+  private collectionName: string;
+  private client: MongoClient | null;
+  private db: Db | null;
+  private collection: Collection<ProcessedPlace> | null;
+
   /**
    * Create a new MongoDB storage handler
-   * @param {Object} options - Configuration options
+   * @param options - Configuration options
    */
-  constructor(options = {}) {
+  constructor(options: StorageOptions = {}) {
     this.uri = options.uri || config.mongodb.uri;
     this.databaseName = options.database || config.mongodb.database;
     this.collectionName = options.collection || config.mongodb.collection;
@@ -23,13 +39,13 @@ class MongoDBStorage {
   /**
    * Connect to MongoDB
    */
-  async connect() {
+  async connect(): Promise<void> {
     try {
       console.log("Connecting to MongoDB...");
       this.client = new MongoClient(this.uri);
       await this.client.connect();
       this.db = this.client.db(this.databaseName);
-      this.collection = this.db.collection(this.collectionName);
+      this.collection = this.db.collection<ProcessedPlace>(this.collectionName);
       console.log(
         `Connected to MongoDB: ${this.databaseName}/${this.collectionName}`
       );
@@ -37,7 +53,9 @@ class MongoDBStorage {
       // Create geospatial index
       await this.createIndexes();
     } catch (error) {
-      console.error("Error connecting to MongoDB:", error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("Error connecting to MongoDB:", errorMessage);
       throw error;
     }
   }
@@ -45,7 +63,7 @@ class MongoDBStorage {
   /**
    * Disconnect from MongoDB
    */
-  async disconnect() {
+  async disconnect(): Promise<void> {
     if (this.client) {
       await this.client.close();
       console.log("Disconnected from MongoDB");
@@ -55,7 +73,9 @@ class MongoDBStorage {
   /**
    * Create necessary indexes for efficient querying
    */
-  async createIndexes() {
+  async createIndexes(): Promise<void> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
     try {
       console.log("Creating indexes...");
 
@@ -76,17 +96,21 @@ class MongoDBStorage {
 
       console.log("Indexes created successfully");
     } catch (error) {
-      console.error("Error creating indexes:", error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("Error creating indexes:", errorMessage);
     }
   }
 
   /**
    * Store processed features in MongoDB
-   * @param {Array} features - Array of processed features
-   * @returns {Object} Result with counts of inserted and updated documents
+   * @param features - Array of processed features
+   * @returns Result with counts of inserted and updated documents
    */
-  async storeFeatures(features) {
-    const results = {
+  async storeFeatures(features: ProcessedPlace[]): Promise<StorageResult> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
+    const results: StorageResult = {
       inserted: 0,
       updated: 0,
       errors: 0,
@@ -98,7 +122,7 @@ class MongoDBStorage {
       try {
         // Upsert - update if exists, insert if new
         const result = await this.collection.updateOne(
-          { osm_id: feature.osm_id },
+          { osm_id: feature.osm_id } as Filter<ProcessedPlace>,
           {
             $set: feature,
             $setOnInsert: { created_at: new Date() },
@@ -112,10 +136,9 @@ class MongoDBStorage {
           results.updated++;
         }
       } catch (error) {
-        console.error(
-          `Error storing feature ${feature.osm_id}:`,
-          error.message
-        );
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error(`Error storing feature ${feature.osm_id}:`, errorMessage);
         results.errors++;
       }
     }
@@ -128,14 +151,21 @@ class MongoDBStorage {
 
   /**
    * Find places near a location
-   * @param {number} longitude - Longitude
-   * @param {number} latitude - Latitude
-   * @param {number} maxDistance - Maximum distance in meters
-   * @param {Object} filter - Additional filter criteria
-   * @returns {Promise<Array>} Array of nearby places
+   * @param longitude - Longitude
+   * @param latitude - Latitude
+   * @param maxDistance - Maximum distance in meters
+   * @param filter - Additional filter criteria
+   * @returns Array of nearby places
    */
-  async findNear(longitude, latitude, maxDistance = 5000, filter = {}) {
-    const query = {
+  async findNear(
+    longitude: number,
+    latitude: number,
+    maxDistance: number = 5000,
+    filter: Filter<ProcessedPlace> = {}
+  ): Promise<WithId<ProcessedPlace>[]> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
+    const query: Filter<ProcessedPlace> = {
       location: {
         $near: {
           $geometry: {
@@ -153,12 +183,17 @@ class MongoDBStorage {
 
   /**
    * Find places by category
-   * @param {string} category - Category name
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} Array of places
+   * @param category - Category name
+   * @param options - Query options
+   * @returns Array of places
    */
-  async findByCategory(category, options = {}) {
-    const query = { category: category };
+  async findByCategory(
+    category: string,
+    options: QueryOptions = {}
+  ): Promise<WithId<ProcessedPlace>[]> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
+    const query: Filter<ProcessedPlace> = { category: category };
     const cursor = this.collection.find(query);
 
     if (options.limit) {
@@ -174,12 +209,17 @@ class MongoDBStorage {
 
   /**
    * Search places by text
-   * @param {string} searchText - Text to search for
-   * @param {Object} options - Search options
-   * @returns {Promise<Array>} Array of matching places
+   * @param searchText - Text to search for
+   * @param options - Search options
+   * @returns Array of matching places
    */
-  async search(searchText, options = {}) {
-    const query = { $text: { $search: searchText } };
+  async search(
+    searchText: string,
+    options: QueryOptions = {}
+  ): Promise<WithId<Document>[]> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
+    const query: Filter<ProcessedPlace> = { $text: { $search: searchText } };
 
     if (options.category) {
       query.category = options.category;
@@ -200,20 +240,22 @@ class MongoDBStorage {
 
   /**
    * Get statistics about stored data
-   * @returns {Promise<Object>} Statistics object
+   * @returns Statistics object
    */
-  async getStats() {
+  async getStats(): Promise<Statistics> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
     const totalCount = await this.collection.countDocuments();
 
     const categoryCounts = await this.collection
-      .aggregate([
+      .aggregate<{ _id: string; count: number }>([
         { $group: { _id: "$category", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ])
       .toArray();
 
     const subcategoryCounts = await this.collection
-      .aggregate([
+      .aggregate<{ _id: string; count: number }>([
         { $group: { _id: "$subcategory", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 20 },
@@ -230,7 +272,9 @@ class MongoDBStorage {
   /**
    * Delete all documents from the collection
    */
-  async clearCollection() {
+  async clearCollection(): Promise<number> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
     const result = await this.collection.deleteMany({});
     console.log(`Deleted ${result.deletedCount} documents from collection`);
     return result.deletedCount;
@@ -238,13 +282,15 @@ class MongoDBStorage {
 
   /**
    * Export all data as GeoJSON
-   * @returns {Promise<Object>} GeoJSON FeatureCollection
+   * @returns GeoJSON FeatureCollection
    */
-  async exportAsGeoJSON() {
+  async exportAsGeoJSON(): Promise<GeoJSONFeatureCollection> {
+    if (!this.collection) throw new Error("Not connected to MongoDB");
+
     const documents = await this.collection.find({}).toArray();
 
-    const features = documents.map((doc) => ({
-      type: "Feature",
+    const features: ExportFeature[] = documents.map((doc) => ({
+      type: "Feature" as const,
       id: doc.osm_id,
       properties: {
         name: doc.name,
@@ -259,9 +305,9 @@ class MongoDBStorage {
 
     return {
       type: "FeatureCollection",
-      features: features,
+      features: features as GeoJSONFeatureCollection["features"],
     };
   }
 }
 
-module.exports = MongoDBStorage;
+export default MongoDBStorage;

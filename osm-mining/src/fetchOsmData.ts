@@ -3,12 +3,17 @@
  * Useful for testing or exporting to file only
  */
 
-const OsmDataFetcher = require("./osmFetcher");
-const config = require("./config");
-const fs = require("fs");
-const path = require("path");
+import OsmDataFetcher from "./osmFetcher";
+import config from "./config";
+import * as fs from "fs";
+import * as path from "path";
+import { Category } from "./types";
 
-async function fetchOsmData() {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchOsmData(): Promise<void> {
   console.log("=".repeat(60));
   console.log("OSM Data Fetcher - Sri Lanka Tourism");
   console.log("=".repeat(60));
@@ -23,7 +28,7 @@ async function fetchOsmData() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const categories = ["tourism", "historic", "natural", "leisure"];
+  const categories: Category[] = ["tourism", "historic", "natural", "leisure"];
 
   for (const category of categories) {
     console.log(`\nFetching ${category} data...`);
@@ -45,7 +50,9 @@ async function fetchOsmData() {
       // Add delay to avoid rate limiting
       await sleep(2000);
     } catch (error) {
-      console.error(`  Error fetching ${category}:`, error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error(`  Error fetching ${category}:`, errorMessage);
     }
   }
 
@@ -67,16 +74,14 @@ async function fetchOsmData() {
     fs.writeFileSync(processedFilepath, JSON.stringify(processed, null, 2));
     console.log(`Saved processed data to ${processedFilename}`);
   } catch (error) {
-    console.error("Error fetching all data:", error.message);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error("Error fetching all data:", errorMessage);
   }
 
   console.log("\n" + "=".repeat(60));
   console.log("Fetching complete! Check the output folder.");
   console.log("=".repeat(60));
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Run the fetcher

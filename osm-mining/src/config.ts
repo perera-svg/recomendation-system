@@ -3,9 +3,12 @@
  * Sri Lanka bounding box and tourism tags
  */
 
-require("dotenv").config();
+import * as dotenv from "dotenv";
+import { Config } from "./types";
 
-module.exports = {
+dotenv.config();
+
+const config: Config = {
   // Overpass API endpoint
   overpassApiUrl:
     process.env.OVERPASS_API_URL || "https://overpass-api.de/api/interpreter",
@@ -13,10 +16,10 @@ module.exports = {
   // Sri Lanka bounding box coordinates
   // Format: [South, West, North, East]
   sriLankaBbox: {
-    south: parseFloat(process.env.BBOX_SOUTH) || 5.916,
-    west: parseFloat(process.env.BBOX_WEST) || 79.652,
-    north: parseFloat(process.env.BBOX_NORTH) || 9.836,
-    east: parseFloat(process.env.BBOX_EAST) || 81.879,
+    south: parseFloat(process.env.BBOX_SOUTH || "") || 5.916,
+    west: parseFloat(process.env.BBOX_WEST || "") || 79.652,
+    north: parseFloat(process.env.BBOX_NORTH || "") || 9.836,
+    east: parseFloat(process.env.BBOX_EAST || "") || 81.879,
   },
 
   // Tourism tags to fetch from OSM
@@ -90,5 +93,7 @@ module.exports = {
 
   // Fetch interval in milliseconds
   fetchIntervalMs:
-    (parseInt(process.env.FETCH_INTERVAL_HOURS) || 24) * 60 * 60 * 1000,
+    (parseInt(process.env.FETCH_INTERVAL_HOURS || "") || 24) * 60 * 60 * 1000,
 };
+
+export default config;
